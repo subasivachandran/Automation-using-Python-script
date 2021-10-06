@@ -1,0 +1,74 @@
+﻿%%This statement makes the basic Abaqus objects accessible to the script%%
+from abaqus import * 
+
+%%This statement makes the Symbolic constants defined by the Abaqus scripting interface available to the Script
+from abaqusConstants import * 
+
+%%These statements provides access to the objects related to Plotting, Numerics in Python. xyplot and numpy are called Python modules. 
+import xyPlot
+import numpy as np
+
+%%This statement provides access to the commands that replicate the functionality of the Visualization module of Abaqus/CAE 
+import visualization 
+
+%%This statement creates a new viewport named 'Tensile test' in the session. The new viewport is assigned to the variable myViewport. 
+myViewport = session.Viewport(name='Tensile test') 
+
+%%This statement creates a path to the tutorial output database.
+odbPath = 'Job-3.odb'
+
+%%This statement uses the path variable odbPath to open the output database and to assign it to the variable myOdb.
+myOdb = visualization.openOdb(path='Job-3.odb')
+
+%%This statement assigns the value myOdb to the viewport
+myViewport.setValues(displayedObject=myOdb)
+
+%%This statement assign the ﬁrst step in the output database to the variables Step-1
+step1 = myOdb.steps['Step-1']
+
+%%Extract the Stress-Timestep and Strain-Timestep data for the Tensile specimen
+region1 = step1.historyRegions['Node ASSEMBLY.2']
+stressdata = region1.historyOutputs['RF3'].data
+region2 = step1.historyRegions['Node ZUGVERSUCHS-1.10']
+displacement1 = region2.historyOutputs['U3'].data
+region3 = step1.historyRegions['Node ZUGVERSUCHS-1.14']
+displacement2 = region3.historyOutputs['U3'].data
+
+%%Calculation of stress for the Timesteps(F/A)
+stress = np.asarray(stressdata)
+stress = stress/40
+stress[:,1]
+
+%%Calculation of strain for the Timesteps(Change in Length/Original Length)
+displacement1_temp = np.asarray(displacement1)
+displacement2_temp = np.asarray(displacement2)
+strain = (displacement2_temp - displacement1_temp)/80
+strain[:,1]
+
+%%This statement creates a new viewport named 'Graph' in the session. The new viewport is assigned to the variable myViewport2. 
+myViewport2 = session.Viewport(name='Graph') 
+
+%%Creation of a XYPlot
+xyPlot = session.XYPlot('Stress vs Strain')
+
+%%Assigning strain data to the variable xyData1 and stress data to the variable xyData2
+xyData1 = session.XYData('Strain', strain)
+xyData2 = session.XYData('Stress', stress)
+
+%%Plotting the curve using xyData1 and xyData2
+c1 = session.Curve(xyData=xyData1)
+c2 = session.Curve(xyData=xyData2)
+chartName = xyPlot.charts.keys()[0]
+chart = xyPlot.charts[chartName]
+chart.setValues(curvesToPlot=(c1, c2))
+
+%%This statement assigns the value xyPlot to the viewport myViewport2
+myViewport2.setValues(displayedObject=xyPlot)
+
+
+%%These command lines exports the required data to a Notepad file which then can be imported to an Excel file
+list=['Increment','Strain','Stress']
+listfinal=np.asarray(list)
+np.savetxt("Filename", np.column_stack((listfinal)), delimiter="|", newline='\n\n', fmt='%s')
+with open('Filename','ab') as f:
+	np.savetxt(f, np.column_stack(([increment[:,0],strain[:,1],stress[:,1]])), delimiter="|", newline='\n', fmt='%s')
